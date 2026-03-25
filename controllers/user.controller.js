@@ -84,16 +84,15 @@ exports.getProfile = async function (req, res) {
 
 
 // ================= CREATE USER =================
-exports.createUser = async function (req, res) {
+exports.createUser = async function(req, res) {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password, role } = req.body;
 
         if (!name || !email || !password) {
-            return res.status(400).send("All fields are required");
+            return res.status(400).send("All fields required");
         }
 
         const existingUser = await User.findOne({ email });
-
         if (existingUser) {
             return res.status(400).send("Email already exists");
         }
@@ -103,15 +102,13 @@ exports.createUser = async function (req, res) {
         const user = new User({
             name,
             email,
-            password: hashedPassword
+            password: hashedPassword,
+            role: role || "user" // default user
         });
 
         await user.save();
 
-        const userResponse = user.toObject();
-        delete userResponse.password;
-
-        res.status(201).json(userResponse);
+        res.send("User created successfully");
     } catch (err) {
         res.status(500).send("Error creating user");
     }
@@ -119,10 +116,33 @@ exports.createUser = async function (req, res) {
 
 
 // ================= GET ALL USERS =================
-exports.getUsers = async function (req, res) {
+exports.getUsers = async function(req, res) {
     try {
-        const users = await User.find().select("-password");
-        res.json(users);
+        let { page = 1, limit = 5, search = '' } = req.query;
+
+        page = parseInt(page);
+        limit = parseInt(limit);
+
+        const query = {
+            $or: [
+                { name: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } }
+            ]
+        };
+
+        const users = await User.find(query)
+            .skip((page - 1) * limit)
+            .limit(limit);
+
+        const total = await User.countDocuments(query);
+
+        res.json({
+            users,
+            total,
+            page,
+            totalPages: Math.ceil(total / limit)
+        });
+
     } catch (err) {
         res.status(500).send("Error fetching users");
     }
@@ -149,16 +169,16 @@ exports.updateUser = async function (req, res) {
 
 
 // ================= DELETE USER =================
-exports.deleteUser = async function (req, res) {
-    try {
-        const id = req.params.id;
+exports.deleteUser = async function(req, res) {
+    const id = req.params.id;
 
-        await User.findByIdAndDelete(id);
-
-        res.send("User deleted successfully");
-    } catch (err) {
-        res.status(500).send("Error deleting user");
+    if (req.userId === id) {
+        return res.status(400).send("You cannot delete yourself");
     }
+
+    await User.findByIdAndDelete(id);
+
+    res.send("User deleted successfully");
 };
 
 
