@@ -60,10 +60,10 @@ exports.login = async function (req, res) {
             return res.status(400).send("Wrong password");
         }
 
-        const token = jwt.sign(
-            { userId: user._id },
-            process.env.JWT_SECRET
-        );
+       const token = jwt.sign(
+    { userId: user._id, role: user.role },
+    process.env.JWT_SECRET
+);
 
         res.json({ token });
     } catch (err) {
