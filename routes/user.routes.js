@@ -10,7 +10,9 @@ router.get("/profile", authMiddleware, userController.getProfile);
 
 router.post("/user", userController.createUser);
 router.get("/users", userController.getUsers);
-router.put("/user/:id", userController.updateUser);
-router.delete("/user/:id", userController.deleteUser);
+router.put("/user/:id", authMiddleware, userController.updateUser);
+router.delete("/user/:id", authMiddleware, userController.deleteUser);
+router.put("/profile", authMiddleware, userController.updateProfile);
+router.post("/change-password", authMiddleware, userController.changePassword);
 
 module.exports = router;

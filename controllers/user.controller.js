@@ -2,6 +2,8 @@ const User = require("../models/user.model");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
+
+// ================= SIGNUP =================
 exports.signup = async function (req, res) {
     try {
         const { name, email, password } = req.body;
@@ -36,6 +38,8 @@ exports.signup = async function (req, res) {
     }
 };
 
+
+// ================= LOGIN =================
 exports.login = async function (req, res) {
     try {
         const { email, password } = req.body;
@@ -67,6 +71,8 @@ exports.login = async function (req, res) {
     }
 };
 
+
+// ================= PROFILE =================
 exports.getProfile = async function (req, res) {
     try {
         const user = await User.findById(req.userId).select("-password");
@@ -76,32 +82,138 @@ exports.getProfile = async function (req, res) {
     }
 };
 
-exports.createUser = async function(req, res) {
-    const user = new User(req.body);
 
-    await user.save();
+// ================= CREATE USER =================
+exports.createUser = async function (req, res) {
+    try {
+        const { name, email, password } = req.body;
 
-    res.send("User saved in database");
+        if (!name || !email || !password) {
+            return res.status(400).send("All fields are required");
+        }
+
+        const existingUser = await User.findOne({ email });
+
+        if (existingUser) {
+            return res.status(400).send("Email already exists");
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const user = new User({
+            name,
+            email,
+            password: hashedPassword
+        });
+
+        await user.save();
+
+        const userResponse = user.toObject();
+        delete userResponse.password;
+
+        res.status(201).json(userResponse);
+    } catch (err) {
+        res.status(500).send("Error creating user");
+    }
 };
 
-exports.getUsers = async function(req, res) {
-    const users = await User.find();
-    res.json(users);
+
+// ================= GET ALL USERS =================
+exports.getUsers = async function (req, res) {
+    try {
+        const users = await User.find().select("-password");
+        res.json(users);
+    } catch (err) {
+        res.status(500).send("Error fetching users");
+    }
 };
 
-exports.updateUser = async function(req, res) {
-    const id = req.params.id;
-    const updatedData = req.body;
 
-    const user = await User.findByIdAndUpdate(id, updatedData, { new: true });
+// ================= UPDATE USER (ADMIN TYPE) =================
+exports.updateUser = async function (req, res) {
+    try {
+        const id = req.params.id;
+        const { name, email } = req.body;
 
-    res.json(user);
+        const user = await User.findByIdAndUpdate(
+            id,
+            { name, email },
+            { new: true }
+        ).select("-password");
+
+        res.json(user);
+    } catch (err) {
+        res.status(500).send("Error updating user");
+    }
 };
 
-exports.deleteUser = async function(req, res) {
-    const id = req.params.id;
 
-    await User.findByIdAndDelete(id);
+// ================= DELETE USER =================
+exports.deleteUser = async function (req, res) {
+    try {
+        const id = req.params.id;
 
-    res.send("User deleted successfully");
+        await User.findByIdAndDelete(id);
+
+        res.send("User deleted successfully");
+    } catch (err) {
+        res.status(500).send("Error deleting user");
+    }
+};
+
+
+// ================= UPDATE PROFILE =================
+exports.updateProfile = async function (req, res) {
+    try {
+        const { name, email } = req.body;
+
+        if (!name || !email) {
+            return res.status(400).send("Name and email required");
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            req.userId,
+            { name, email },
+            { new: true }
+        ).select("-password");
+
+        res.json(updatedUser);
+    } catch (err) {
+        res.status(500).send("Error updating profile");
+    }
+};
+
+
+// ================= CHANGE PASSWORD =================
+exports.changePassword = async function (req, res) {
+    try {
+        const { oldPassword, newPassword } = req.body;
+
+        if (!oldPassword || !newPassword) {
+            return res.status(400).send("Both passwords required");
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).send("New password must be at least 6 characters");
+        }
+
+        const user = await User.findById(req.userId);
+
+        const isMatch = await bcrypt.compare(oldPassword, user.password);
+
+        if (!isMatch) {
+            return res.status(400).send("Old password is incorrect");
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        user.password = hashedPassword;
+
+        await user.save();
+
+        res.send("Password updated successfully");
+
+    } catch (err) {
+        res.status(500).send("Error changing password");
+    }
 };
