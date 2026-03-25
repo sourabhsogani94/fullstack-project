@@ -21,5 +21,6 @@ router.put("/user/:id", authMiddleware, userController.updateUser);
 router.delete("/user/:id", authMiddleware, adminMiddleware, userController.deleteUser);
 router.put("/profile", authMiddleware, userController.updateProfile);
 router.post("/change-password", authMiddleware, userController.changePassword);
+router.put("/make-admin", authMiddleware, userController.makeAdmin);
 
 module.exports = router;

@@ -65,7 +65,7 @@ exports.login = async function (req, res) {
     process.env.JWT_SECRET
 );
 
-        res.json({ token });
+        res.json({ token, role: user.role });
     } catch (err) {
         res.status(500).send("Error in login");
     }
@@ -200,6 +200,26 @@ exports.updateProfile = async function (req, res) {
         res.json(updatedUser);
     } catch (err) {
         res.status(500).send("Error updating profile");
+    }
+};
+
+
+// ================= MAKE ADMIN =================
+exports.makeAdmin = async function (req, res) {
+    try {
+        const user = await User.findByIdAndUpdate(
+            req.userId,
+            { role: 'admin' },
+            { new: true }
+        ).select("-password");
+
+        if (!user) {
+            return res.status(404).send("User not found");
+        }
+
+        res.json({ message: "You are now an admin", user });
+    } catch (err) {
+        res.status(500).send("Error making admin");
     }
 };
 
